@@ -49,3 +49,5 @@ services:
         value: "1521"
       - key: ORACLE_CONNECT_TIMEOUT
         value: "10"
+      - key: ORACLE_SSH_DEBUG
+        value: "false"

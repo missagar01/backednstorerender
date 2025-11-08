@@ -2,7 +2,7 @@
 import dotenv from "dotenv";
 import oracledb from "./oracleClient.js";
 import { initOracleClient } from "./oracleClient.js";
-import { initOracleSshTunnel, getTunnelLocalPort } from "./sshTunnel.js";
+import { initOracleSshTunnel, getTunnelLocalPort, isTunnelListening } from "./sshTunnel.js";
 
 dotenv.config();
 
@@ -26,7 +26,11 @@ export async function initPool() {
       if (m) {
         const rest = m.groups.rest || ""; // includes /serviceName or descriptor tail
         connectString = `127.0.0.1:${localPort}${rest}`;
-        console.log(`🔐 Oracle SSH tunnel active → ${connectString}`);
+        if (isTunnelListening()) {
+          console.log(`🔐 Oracle SSH tunnel active → ${connectString}`);
+        } else {
+          console.warn(`⏳ SSH tunnel started but not yet listening; attempting pool with ${connectString}`);
+        }
       } else {
         console.warn("SSH tunnel enabled but ORACLE_CONNECTION_STRING not in host:port/... format; using as-is");
       }

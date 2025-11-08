@@ -1,4 +1,6 @@
 let serverRef = null;
+let createTunnelFn = null;
+let listening = false;
 
 export async function initOracleSshTunnel() {
   if (serverRef) return serverRef; // already started
@@ -7,13 +9,25 @@ export async function initOracleSshTunnel() {
   if (!enabled) return null;
 
   // Lazy-load the dependency only if enabled so local dev won't crash
-  let tunnel;
+  let tunnelModule;
   try {
-    ({ default: tunnel } = await import("tunnel-ssh"));
+    tunnelModule = await import("tunnel-ssh");
   } catch (e) {
     throw new Error(
       "tunnel-ssh is not installed. Run 'npm install tunnel-ssh' or disable ORACLE_SSH_TUNNEL_ENABLED"
     );
+  }
+
+  // Support different export shapes across versions (CJS/ESM)
+  const cand = [
+    tunnelModule?.default?.createTunnel,
+    tunnelModule?.createTunnel,
+    tunnelModule?.default,
+    tunnelModule,
+  ].filter(Boolean);
+  createTunnelFn = cand.find((c) => typeof c === "function");
+  if (!createTunnelFn) {
+    throw new Error("Failed to load tunnel-ssh: no callable export found (createTunnel or default function)");
   }
 
   const sshHost = process.env.ORACLE_SSH_HOST;
@@ -47,14 +61,43 @@ export async function initOracleSshTunnel() {
     keepAlive: true,
   };
 
-  serverRef = await new Promise((resolve, reject) => {
-    const srv = tunnel(config, (error, _server) => {
-      if (error) return reject(error);
-      resolve(srv);
+  const debug = /^true$/i.test(process.env.ORACLE_SSH_DEBUG || "");
+  if (debug) {
+    console.log("[SSH] Starting tunnel:", {
+      host: sshHost,
+      port: sshPort,
+      user: sshUser,
+      localPort,
+      dst: `${dstHost}:${dstPort}`,
     });
+  }
+
+  serverRef = await new Promise((resolve, reject) => {
+    try {
+      const srv = createTunnelFn(config, (error, _server) => {
+        if (error) return reject(error);
+        resolve(srv);
+      });
+      // Some versions return an EventEmitter-like server immediately
+      if (srv && typeof srv.on === "function") {
+        srv.on("error", (err) => {
+          if (debug) console.warn("[SSH] tunnel error:", err?.message || err);
+        });
+        srv.on("listening", () => {
+          listening = true;
+          if (debug) console.log("[SSH] tunnel listening on 127.0.0.1:", localPort);
+        });
+      }
+    } catch (err) {
+      return reject(err);
+    }
   });
 
   return serverRef;
+}
+
+export function isTunnelListening() {
+  return !!listening;
 }
 
 export function getTunnelLocalPort() {

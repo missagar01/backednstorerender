@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "../config/supabaseClient.js";
+import { isTunnelListening, getTunnelLocalPort } from "../config/sshTunnel.js";
 import { getConnection } from "../config/db.js";
 
 export async function supabaseHealth(req, res) {
@@ -42,6 +43,14 @@ export async function oracleHealth(_req, res) {
     return res.status(503).json({ ok: false, engine: "oracle", error: err.message });
   } finally {
     try { if (conn) await conn.close(); } catch (_) {}
+  }
+}
+
+export async function tunnelHealth(_req, res) {
+  try {
+    return res.json({ active: isTunnelListening(), localPort: getTunnelLocalPort() });
+  } catch (_) {
+    return res.json({ active: false, localPort: null });
   }
 }
 
