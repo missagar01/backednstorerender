@@ -10,8 +10,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 18
-      - key: PORT
-        value: 3004
       - key: JWT_SECRET
         sync: false
       - key: SUPABASE_URL
@@ -30,4 +28,24 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
-
+      # Optional SSH tunnel to reach Oracle from Render
+      - key: ORACLE_SSH_TUNNEL_ENABLED
+        value: "false"
+      - key: ORACLE_SSH_HOST
+        sync: false
+      - key: ORACLE_SSH_PORT
+        value: "22"
+      - key: ORACLE_SSH_USERNAME
+        sync: false
+      - key: ORACLE_SSH_PASSWORD
+        sync: false
+      - key: ORACLE_SSH_PRIVATE_KEY
+        sync: false
+      - key: ORACLE_TUNNEL_LOCAL_PORT
+        value: "15210"
+      - key: ORACLE_TUNNEL_DST_HOST
+        value: "localhost"
+      - key: ORACLE_TUNNEL_DST_PORT
+        value: "1521"
+      - key: ORACLE_CONNECT_TIMEOUT
+        value: "10"
